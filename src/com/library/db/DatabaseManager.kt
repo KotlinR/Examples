@@ -44,32 +44,18 @@ class DatabaseManager(private val path: String = DB_PATH) {
     }
 
     private fun isDatabaseExist(): Boolean {
-        var file = false
-        thread {
-            checkNotAMainThread()
-            if (File(path).exists()) file = true
-        }.join()
-        return file
+        return File(path).exists()
     }
 
     private fun readDatabaseFromFile(): Database {
-        var db: Database? = null
-        thread {
-            checkNotAMainThread()
-            db = ObjectInputStream(BufferedInputStream(FileInputStream(File(path)))).use {
-                it.readObject() as Database
-            }
-        }.join()
-        return db as Database
+        return ObjectInputStream(BufferedInputStream(FileInputStream(File(path)))).use {
+            it.readObject() as Database
+        }
     }
 
     private fun createNewDatabase(): Database {
-        var clients: MutableList<ClientEntity> = mutableListOf()
-        var books: MutableList<BookEntity> = mutableListOf()
-        var ownership: MutableList<OwnershipEntity> = mutableListOf()
-        thread {
             checkNotAMainThread()
-            clients = Collections.synchronizedList(
+            val clients = Collections.synchronizedList(
                 mutableListOf(
                     ClientEntity(
                         id = "LC-001",
@@ -174,7 +160,7 @@ class DatabaseManager(private val path: String = DB_PATH) {
                 )
             )
 
-            books = Collections.synchronizedList(
+            val books = Collections.synchronizedList(
                 mutableListOf(
                     BookEntity(id = "LB-001", title = "Книга-Нига", year = "2018"),
                     BookEntity(id = "LB-002", title = "Книга-Нига", year = "2018"),
@@ -233,7 +219,7 @@ class DatabaseManager(private val path: String = DB_PATH) {
 
             val booksForRandom = books.toMutableList()
 
-            ownership = Collections.synchronizedList(
+            val ownership = Collections.synchronizedList(
                 clients.mapNotNull {
                     if (Random.nextBoolean()) {
                         val bookInUse = booksForRandom.randomOrNull()
@@ -244,7 +230,6 @@ class DatabaseManager(private val path: String = DB_PATH) {
                     }
                 }.toMutableList()
             )
-        }
         return Database(
             books = books,
             clients = clients,

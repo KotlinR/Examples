@@ -10,30 +10,15 @@ import kotlin.concurrent.thread
 class DatabaseDao(private val database: Database) {
 
     fun getAllClients(): List<ClientEntity> {
-        var clients = mutableListOf<ClientEntity>()
-        thread {
-            checkNotAMainThread()
-            clients = database.clients
-        }.join()
-        return clients
+        return database.clients.getFromThread()
     }
 
     fun getAllBooks(): List<BookEntity> {
-        var books = mutableListOf<BookEntity>()
-        thread {
-            checkNotAMainThread()
-            books = database.books
-        }.join()
-        return books
+        return database.books.getFromThread()
     }
 
     fun getOwnershipInfo(): List<OwnershipEntity> {
-        var ownership = mutableListOf<OwnershipEntity>()
-        thread {
-            checkNotAMainThread()
-            ownership = database.ownership
-        }.join()
-        return ownership
+        return database.ownership.getFromThread()
     }
 
     fun addBookToClient(clientId: String, bookId: String) {
@@ -53,11 +38,17 @@ class DatabaseDao(private val database: Database) {
     }
 
     fun confiscateBooks(clientId: String) {
+        checkNotAMainThread()
+        database.ownership.getFromThread().firstOrNull { it.client.id == clientId }?.let {
+            database.ownership.remove(it)
+        }
+    }
+
+    private fun <T> MutableList<T>.getFromThread(): List<T> {
+        var result = mutableListOf<T>()
         thread {
-            checkNotAMainThread()
-            database.ownership.firstOrNull { it.client.id == clientId }?.let {
-                database.ownership.remove(it)
-            }
-        }.join()
+            result = this
+        }
+        return result
     }
 }
