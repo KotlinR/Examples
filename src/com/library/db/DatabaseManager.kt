@@ -7,19 +7,22 @@ import com.library.db.entities.OwnershipEntity.Companion.assign
 import com.library.utills.checkNotAMainThread
 import java.io.*
 import java.util.*
-import kotlin.concurrent.thread
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutorService
 import kotlin.random.Random
 
-class DatabaseManager(private val path: String = DB_PATH) {
+class DatabaseManager(private val path: String = DB_PATH, private val executorService: ExecutorService) {
 
     private companion object {
         const val DB_PATH = "src/com/library/LibraryDatabase.db"
     }
 
     fun getDatabase(): Database {
-        var result: Database? = null
-        thread {
-            result = runCatching {
+        return executorService.submit(Callable { getDB() }).get()
+    }
+
+    private fun getDB(): Database {
+        return runCatching {
                 if (isDatabaseExist()) {
                     readDatabaseFromFile()
                 } else {
@@ -28,19 +31,16 @@ class DatabaseManager(private val path: String = DB_PATH) {
             }.getOrNull() ?: run {
                 createNewDatabase()
             }
-        }.join()
-        return requireNotNull(result)
-    }
+        }
 
     fun updateDatabase(database: Database) {
-        thread {
+        executorService.execute {
             checkNotAMainThread()
-            val file = File(path)
-            ObjectOutputStream(BufferedOutputStream(FileOutputStream(file))).use {
+            ObjectOutputStream(BufferedOutputStream(FileOutputStream(File(path)))).use {
                 it.writeObject(database)
                 it.flush()
             }
-        }.join()
+        }
     }
 
     private fun isDatabaseExist(): Boolean {

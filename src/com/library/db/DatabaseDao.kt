@@ -5,24 +5,26 @@ import com.library.db.entities.ClientEntity
 import com.library.db.entities.OwnershipEntity
 import com.library.db.entities.OwnershipEntity.Companion.assign
 import com.library.utills.checkNotAMainThread
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutorService
 import kotlin.concurrent.thread
 
-class DatabaseDao(private val database: Database) {
+class DatabaseDao(private val database: Database, private val executorService: ExecutorService) {
 
     fun getAllClients(): List<ClientEntity> {
-        return database.clients.getFromThread()
+        return executorService.submit(Callable { database.clients }).get()
     }
 
     fun getAllBooks(): List<BookEntity> {
-        return database.books.getFromThread()
+        return executorService.submit(Callable { database.books }).get()
     }
 
     fun getOwnershipInfo(): List<OwnershipEntity> {
-        return database.ownership.getFromThread()
+        return executorService.submit(Callable { database.ownership }).get()
     }
 
     fun addBookToClient(clientId: String, bookId: String) {
-        thread {
+        executorService.execute {
             checkNotAMainThread()
             var ownership: OwnershipEntity? = database.ownership
                 .firstOrNull { it.client.id == clientId }
@@ -34,21 +36,15 @@ class DatabaseDao(private val database: Database) {
                 ownership = client assign book
             }
             database.ownership.add(ownership)
-        }.join()
+        }
     }
 
     fun confiscateBooks(clientId: String) {
-        checkNotAMainThread()
-        database.ownership.getFromThread().firstOrNull { it.client.id == clientId }?.let {
-            database.ownership.remove(it)
+        executorService.execute {
+            checkNotAMainThread()
+            database.ownership.firstOrNull { it.client.id == clientId }?.let {
+                database.ownership.remove(it)
+            }
         }
-    }
-
-    private fun <T> MutableList<T>.getFromThread(): List<T> {
-        var result = mutableListOf<T>()
-        thread {
-            result = this
-        }
-        return result
     }
 }

@@ -1,7 +1,6 @@
 package com.library
 
 import com.library.core.Library
-import com.library.db.Database
 import com.library.db.DatabaseDao
 import com.library.db.DatabaseManager
 import com.library.db.repository.Repository
@@ -9,6 +8,8 @@ import com.library.db.repository.WishGenerator
 import com.library.humans.Librarian
 import com.library.utills.ConsoleColors
 import com.library.utills.colorPrintln
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 import kotlin.random.Random
 
@@ -35,26 +36,24 @@ import kotlin.random.Random
  */
 fun main() {
     colorPrintln(ConsoleColors.BLUE_BOLD) { "\nSTART\n" }
-    var repository: Repository? = null
-    var databaseManager: DatabaseManager? = null
-    var database: Database? = null
 
-    val databaseThread = thread {
-        databaseManager = DatabaseManager()
-        database = databaseManager!!.getDatabase()
-        val dao = DatabaseDao(database = database!!)
-        val wishGenerator = WishGenerator(dao = dao)
-        repository = Repository(dao = dao, wishGenerator = wishGenerator)
-    }
-    val library = Library(repository = repository!!)
+    val executorService = Executors.newSingleThreadExecutor()
+
+    val databaseManager = DatabaseManager(executorService = executorService)
+    val database = databaseManager.getDatabase()
+    val dao = DatabaseDao(database = database, executorService = executorService)
+    val wishGenerator = WishGenerator(dao = dao)
+    val repository = Repository(dao = dao, wishGenerator = wishGenerator)
+
+    val library = Library(repository = repository)
     val librarians = listOf(
-        Librarian(id = "LM-001", name = "Мотя", surname = "Букварёва", repository = repository!!),
-        Librarian(id = "LM-002", name = "Марфа", surname = "Иванова", repository = repository!!)
+        Librarian(id = "LM-001", name = "Мотя", surname = "Букварёва", repository = repository),
+        Librarian(id = "LM-002", name = "Марфа", surname = "Иванова", repository = repository)
     )
 
     library.start(librarians = librarians)
 
-    val clients = repository!!.clients()
+    val clients = repository.clients()
 
     val clientsThread = thread(name = "Client thread") {
         clients.forEach { client ->
@@ -66,15 +65,15 @@ fun main() {
     clientsThread.join()
     library.finish(clients)
 
-    databaseManager!!.updateDatabase(database!!)
-    databaseThread.join()
+    databaseManager.updateDatabase(database)
 
-    val afterUpdateSize = database!!.ownership.size
-    val afterSavingSize = databaseManager!!.getDatabase().ownership.size
+    val afterUpdateSize = database.ownership.size
+    val afterSavingSize = databaseManager.getDatabase().ownership.size
     colorPrintln(if (afterSavingSize == afterUpdateSize) ConsoleColors.GREEN_BOLD else ConsoleColors.RED_BOLD) {
         "\nAfter modifications ownership.size = [$afterUpdateSize]\n" +
                 "Saved in file database with ownership.size = [$afterSavingSize]\n"
     }
+    executorService.shutdown()
 
     colorPrintln(ConsoleColors.BLUE_BOLD) { "\nFINISH\n" }
 }
