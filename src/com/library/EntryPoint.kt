@@ -8,6 +8,8 @@ import com.library.db.repository.WishGenerator
 import com.library.humans.Librarian
 import com.library.utills.ConsoleColors
 import com.library.utills.colorPrintln
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 import kotlin.random.Random
 
@@ -33,12 +35,13 @@ import kotlin.random.Random
  * Создаем проект на github + VCS
  */
 fun main() {
-
     colorPrintln(ConsoleColors.BLUE_BOLD) { "\nSTART\n" }
 
-    val databaseManager = DatabaseManager()
+    val executorService = Executors.newSingleThreadExecutor()
+
+    val databaseManager = DatabaseManager(executorService = executorService)
     val database = databaseManager.getDatabase()
-    val dao = DatabaseDao(database = database)
+    val dao = DatabaseDao(database = database, executorService = executorService)
     val wishGenerator = WishGenerator(dao = dao)
     val repository = Repository(dao = dao, wishGenerator = wishGenerator)
 
@@ -70,6 +73,7 @@ fun main() {
         "\nAfter modifications ownership.size = [$afterUpdateSize]\n" +
                 "Saved in file database with ownership.size = [$afterSavingSize]\n"
     }
+    executorService.shutdown()
 
     colorPrintln(ConsoleColors.BLUE_BOLD) { "\nFINISH\n" }
 }

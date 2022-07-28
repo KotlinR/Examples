@@ -2,6 +2,7 @@ package com.library.tests
 
 import com.library.db.DatabaseDao
 import com.library.db.DatabaseManager
+import java.util.concurrent.Executors
 
 
 object DatabaseManagerTest {
@@ -13,10 +14,11 @@ object DatabaseManagerTest {
 
     private fun `Given database When change ownership And update database Then assert old database ownership equals new database ownership`() {
         // SET UP
+        val executorService = Executors.newSingleThreadExecutor()
         val path = "src/com/library/test.db"
-        val databaseManager = DatabaseManager(path)
+        val databaseManager = DatabaseManager(path, executorService)
         val dbBeforeUpdate = databaseManager.getDatabase()
-        val dao = DatabaseDao(dbBeforeUpdate)
+        val dao = DatabaseDao(dbBeforeUpdate, executorService)
 
         // TEST
         dao.addBookToClient(
